@@ -6,10 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Upload, Loader2, Sparkles, FileText, Image as ImageIcon, Send } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Upload, Loader2, Sparkles, FileText, Image as ImageIcon, Send, Video } from 'lucide-react';
 import { toast } from 'sonner';
 
+import VideoList from '../components/video/VideoList';
+import ConfidentialityChecker from '../components/video/ConfidentialityChecker';
+
 export default function AdminDashboard() {
+    const queryClient = useQueryClient();
+    const [selectedVideo, setSelectedVideo] = useState(null);
     const [videoFile, setVideoFile] = useState(null);
     const [videoUrl, setVideoUrl] = useState('');
     const [captionsFile, setCaptionsFile] = useState(null);
@@ -18,9 +25,24 @@ export default function AdminDashboard() {
     const [description, setDescription] = useState('');
     const [thumbnailFile, setThumbnailFile] = useState(null);
     const [thumbnailUrl, setThumbnailUrl] = useState('');
+    const [youtubeVisibility, setYoutubeVisibility] = useState('unlisted');
+    const [confidentialityResults, setConfidentialityResults] = useState(null);
     const [generatingCaptions, setGeneratingCaptions] = useState(false);
     const [generatingMetadata, setGeneratingMetadata] = useState({ title: false, description: false, thumbnail: false });
     const [uploading, setUploading] = useState(false);
+
+    const { data: videos = [] } = useQuery({
+        queryKey: ['videos'],
+        queryFn: () => base44.entities.Video.list('-created_date', 100)
+    });
+
+    const deleteVideoMutation = useMutation({
+        mutationFn: (videoId) => base44.entities.Video.delete(videoId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['videos'] });
+            toast.success('Video deleted');
+        }
+    });
 
     const handleVideoUpload = async (e) => {
         const file = e.target.files[0];
@@ -29,14 +51,35 @@ export default function AdminDashboard() {
         setUploading(true);
         try {
             const { file_url } = await base44.integrations.Core.UploadFile({ file });
+            
+            // Create video entity in database
+            const video = await base44.entities.Video.create({
+                title: file.name.replace(/\.[^/.]+$/, ''),
+                file_url: file_url,
+                status: 'draft'
+            });
+            
             setVideoFile(file);
             setVideoUrl(file_url);
-            toast.success('Video uploaded successfully!');
+            setSelectedVideo(video);
+            setTitle(video.title);
+            queryClient.invalidateQueries({ queryKey: ['videos'] });
+            toast.success('Video uploaded to Base44 storage!');
         } catch (error) {
             toast.error('Upload failed: ' + error.message);
         } finally {
             setUploading(false);
         }
+    };
+
+    const handleSelectVideo = (video) => {
+        setSelectedVideo(video);
+        setVideoUrl(video.file_url || '');
+        setTitle(video.title || '');
+        setDescription(video.description || '');
+        setThumbnailUrl(video.thumbnail_url || '');
+        setCaptionsText(video.transcript_text || '');
+        setYoutubeVisibility(video.youtube_visibility || 'unlisted');
     };
 
     const handleGenerateCaptions = async () => {
@@ -225,9 +268,26 @@ Make it professional and engaging.`,
             return;
         }
 
+        if (confidentialityResults?.risk_level === 'high') {
+            const confirm = window.confirm('High confidentiality risk detected. Are you sure you want to publish?');
+            if (!confirm) return;
+        }
+
         try {
+            // Update video entity
+            if (selectedVideo) {
+                await base44.entities.Video.update(selectedVideo.id, {
+                    title,
+                    description,
+                    transcript_text: captionsText,
+                    thumbnail_url: thumbnailUrl,
+                    youtube_visibility: youtubeVisibility,
+                    confidentiality_notes: confidentialityResults?.recommendation || '',
+                    status: 'ready_to_publish'
+                });
+            }
+
             // TODO: Replace with your webhook URL when ready
-            // This will send all data to your YouTube publishing service
             const webhookUrl = 'YOUR_WEBHOOK_URL_HERE';
             
             const payload = {
@@ -236,6 +296,8 @@ Make it professional and engaging.`,
                 description: description,
                 thumbnail_url: thumbnailUrl,
                 captions: captionsText,
+                visibility: youtubeVisibility,
+                confidentiality_check: confidentialityResults,
                 timestamp: new Date().toISOString()
             };
 
@@ -248,15 +310,19 @@ Make it professional and engaging.`,
             //     body: JSON.stringify(payload)
             // });
 
-            toast.success('Video ready to publish! Connect your webhook to complete the flow.');
+            toast.success('Video approved and ready to publish!');
+            queryClient.invalidateQueries({ queryKey: ['videos'] });
             
             // Reset form
+            setSelectedVideo(null);
             setVideoFile(null);
             setVideoUrl('');
             setTitle('');
             setDescription('');
             setThumbnailUrl('');
             setCaptionsText('');
+            setYoutubeVisibility('unlisted');
+            setConfidentialityResults(null);
         } catch (error) {
             toast.error('Publishing failed: ' + error.message);
         }
@@ -264,13 +330,38 @@ Make it professional and engaging.`,
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-7xl mx-auto">
                 <div className="mb-8">
-                    <h1 className="text-4xl font-bold text-gray-900 mb-2">Publish Video to YouTube</h1>
-                    <p className="text-gray-600">Upload video, generate captions & metadata, then publish</p>
+                    <h1 className="text-4xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+                    <p className="text-gray-600">Manage and publish videos to YouTube</p>
                 </div>
 
-                <div className="grid lg:grid-cols-2 gap-6">
+                <Tabs defaultValue="videos" className="space-y-6">
+                    <TabsList>
+                        <TabsTrigger value="videos">
+                            <Video className="w-4 h-4 mr-2" />
+                            All Videos
+                        </TabsTrigger>
+                        <TabsTrigger value="upload">
+                            <Upload className="w-4 h-4 mr-2" />
+                            Upload & Publish
+                        </TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="videos">
+                        <VideoList
+                            videos={videos}
+                            onSelectVideo={(video) => {
+                                handleSelectVideo(video);
+                                // Switch to upload tab
+                                document.querySelector('[value="upload"]').click();
+                            }}
+                            onDeleteVideo={(id) => deleteVideoMutation.mutate(id)}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="upload">
+                        <div className="grid lg:grid-cols-2 gap-6">
                     {/* Left Column - Video & Captions */}
                     <div className="space-y-6">
                         {/* Video Upload */}
@@ -418,10 +509,35 @@ Make it professional and engaging.`,
                             </CardContent>
                         </Card>
 
+                        {/* YouTube Visibility */}
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>5. YouTube Visibility</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <Select value={youtubeVisibility} onValueChange={setYoutubeVisibility}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="public">Public - Anyone can find and watch</SelectItem>
+                                        <SelectItem value="unlisted">Unlisted - Only people with link can watch</SelectItem>
+                                        <SelectItem value="private">Private - Only you can watch</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </CardContent>
+                        </Card>
+
+                        {/* Confidentiality Checker */}
+                        <ConfidentialityChecker
+                            captionsText={captionsText}
+                            onResultsUpdate={setConfidentialityResults}
+                        />
+
                         {/* Thumbnail */}
                         <Card>
                             <CardHeader>
-                                <CardTitle>5. Thumbnail</CardTitle>
+                                <CardTitle>6. Thumbnail</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="flex gap-2">
@@ -471,12 +587,14 @@ Make it professional and engaging.`,
                                     Approve & Publish to YouTube
                                 </Button>
                                 <p className="text-xs text-gray-600 mt-3 text-center">
-                                    This will send video, captions, title, description, and thumbnail to your webhook
+                                    Video will be published as {youtubeVisibility.toUpperCase()}
                                 </p>
                             </CardContent>
                         </Card>
                     </div>
-                </div>
+                        </div>
+                    </TabsContent>
+                </Tabs>
             </div>
         </div>
     );
