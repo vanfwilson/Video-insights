@@ -380,14 +380,17 @@ Make it professional and engaging.`,
                                 <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
                             </div>
                         ) : (
-                            <VideoList
-                                videos={videos}
-                                onSelectVideo={(video) => {
-                                    handleSelectVideo(video);
-                                    setActiveTab('review');
-                                }}
-                                onDeleteVideo={(id) => deleteVideoMutation.mutate(id)}
-                            />
+                            <div>
+                                <p className="text-sm text-gray-600 mb-4">Found {videos?.length || 0} videos</p>
+                                <VideoList
+                                    videos={videos}
+                                    onSelectVideo={(video) => {
+                                        handleSelectVideo(video);
+                                        setActiveTab('review');
+                                    }}
+                                    onDeleteVideo={(id) => deleteVideoMutation.mutate(id)}
+                                />
+                            </div>
                         )}
                     </TabsContent>
 
