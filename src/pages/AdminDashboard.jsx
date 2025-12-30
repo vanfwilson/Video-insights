@@ -64,10 +64,21 @@ export default function AdminDashboard() {
     const [generatingMetadata, setGeneratingMetadata] = useState({ title: false, description: false, thumbnail: false });
     const [uploading, setUploading] = useState(false);
 
-    const { data: videos = [] } = useQuery({
+    const { data: videos = [], isLoading: videosLoading, error: videosError } = useQuery({
         queryKey: ['videos'],
-        queryFn: () => base44.entities.Video.list('-created_date', 100)
+        queryFn: async () => {
+            const result = await base44.entities.Video.list('-created_date', 100);
+            console.log('Fetched videos:', result);
+            return result;
+        }
     });
+
+    React.useEffect(() => {
+        if (videosError) {
+            console.error('Video query error:', videosError);
+            toast.error('Failed to load videos: ' + videosError.message);
+        }
+    }, [videosError]);
 
     const deleteVideoMutation = useMutation({
         mutationFn: (videoId) => base44.entities.Video.delete(videoId),
@@ -364,14 +375,20 @@ Make it professional and engaging.`,
                     </TabsList>
 
                     <TabsContent value="videos">
-                        <VideoList
-                            videos={videos}
-                            onSelectVideo={(video) => {
-                                handleSelectVideo(video);
-                                setActiveTab('review');
-                            }}
-                            onDeleteVideo={(id) => deleteVideoMutation.mutate(id)}
-                        />
+                        {videosLoading ? (
+                            <div className="flex items-center justify-center py-12">
+                                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                            </div>
+                        ) : (
+                            <VideoList
+                                videos={videos}
+                                onSelectVideo={(video) => {
+                                    handleSelectVideo(video);
+                                    setActiveTab('review');
+                                }}
+                                onDeleteVideo={(id) => deleteVideoMutation.mutate(id)}
+                            />
+                        )}
                     </TabsContent>
 
                     <TabsContent value="upload">
