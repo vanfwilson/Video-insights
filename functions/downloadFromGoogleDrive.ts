@@ -29,7 +29,9 @@ Deno.serve(async (req) => {
         );
 
         if (!driveResponse.ok) {
-            throw new Error(`Google Drive API error: ${driveResponse.statusText}`);
+            const errorText = await driveResponse.text();
+            console.error('Google Drive API error:', driveResponse.status, errorText);
+            throw new Error(`Google Drive download failed (${driveResponse.status}): ${errorText || driveResponse.statusText}`);
         }
 
         // Get file as blob
