@@ -16,6 +16,7 @@ import ConfidentialityChecker from '../components/video/ConfidentialityChecker';
 
 export default function AdminDashboard() {
     const queryClient = useQueryClient();
+    const [activeTab, setActiveTab] = useState('videos');
     const [selectedVideo, setSelectedVideo] = useState(null);
     const [videoFile, setVideoFile] = useState(null);
     const [videoUrl, setVideoUrl] = useState('');
@@ -356,7 +357,7 @@ Make it professional and engaging.`,
                     ))}
                 </div>
 
-                <Tabs defaultValue="videos" className="space-y-6">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                     <TabsList>
                         <TabsTrigger value="videos">
                             <Video className="w-4 h-4 mr-2" />
@@ -373,8 +374,7 @@ Make it professional and engaging.`,
                             videos={videos}
                             onSelectVideo={(video) => {
                                 handleSelectVideo(video);
-                                // Switch to upload tab
-                                document.querySelector('[value="upload"]').click();
+                                setActiveTab('upload');
                             }}
                             onDeleteVideo={(id) => deleteVideoMutation.mutate(id)}
                         />
