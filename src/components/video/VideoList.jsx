@@ -52,7 +52,7 @@ export default function VideoList({ videos, onSelectVideo, onDeleteVideo }) {
                                     className="flex-1"
                                 >
                                     <Eye className="w-4 h-4 mr-1" />
-                                    Edit
+                                    Review
                                 </Button>
                                 <Button
                                     size="sm"

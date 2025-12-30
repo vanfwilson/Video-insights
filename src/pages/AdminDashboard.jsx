@@ -365,7 +365,11 @@ Make it professional and engaging.`,
                         </TabsTrigger>
                         <TabsTrigger value="upload">
                             <Upload className="w-4 h-4 mr-2" />
-                            Upload & Publish
+                            Upload Raw Video
+                        </TabsTrigger>
+                        <TabsTrigger value="review">
+                            <FileText className="w-4 h-4 mr-2" />
+                            Review & Approve
                         </TabsTrigger>
                     </TabsList>
 
@@ -374,13 +378,47 @@ Make it professional and engaging.`,
                             videos={videos}
                             onSelectVideo={(video) => {
                                 handleSelectVideo(video);
-                                setActiveTab('upload');
+                                setActiveTab('review');
                             }}
                             onDeleteVideo={(id) => deleteVideoMutation.mutate(id)}
                         />
                     </TabsContent>
 
                     <TabsContent value="upload">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Upload Raw Videos to Base44 Storage</CardTitle>
+                                <p className="text-sm text-gray-600">Upload your raw video files. They will be stored and available for review.</p>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div>
+                                    <Label htmlFor="video-upload">Select video file(s) from your computer</Label>
+                                    <Input
+                                        id="video-upload"
+                                        type="file"
+                                        accept="video/*"
+                                        onChange={handleVideoUpload}
+                                        disabled={uploading}
+                                        className="mt-2"
+                                    />
+                                </div>
+                                {uploading && (
+                                    <div className="flex items-center gap-2 text-blue-600">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Uploading video to Base44 storage...
+                                    </div>
+                                )}
+                                {videoUrl && (
+                                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                                        <p className="text-sm text-green-800">✓ Video uploaded to Base44 storage</p>
+                                        <p className="text-xs text-gray-600 mt-1">Go to "All Videos" tab to review it</p>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="review">
                         <div className="grid lg:grid-cols-2 gap-6">
                     {/* Left Column - Video & Captions */}
                     <div className="space-y-6">
@@ -601,13 +639,13 @@ Make it professional and engaging.`,
                                 <Button
                                     onClick={handlePublish}
                                     size="lg"
-                                    className="w-full bg-blue-600 hover:bg-blue-700 text-lg py-6"
+                                    className="w-full bg-green-600 hover:bg-green-700 text-lg py-6"
                                 >
                                     <Send className="w-5 h-5 mr-2" />
-                                    Approve & Publish to YouTube
+                                    Approve Video (Ready to Publish)
                                 </Button>
                                 <p className="text-xs text-gray-600 mt-3 text-center">
-                                    Video will be published as {youtubeVisibility.toUpperCase()}
+                                    This marks the video as ready for publishing after confidentiality review
                                 </p>
                             </CardContent>
                         </Card>
