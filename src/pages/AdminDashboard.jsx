@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import VideoList from '../components/video/VideoList';
 import ConfidentialityChecker from '../components/video/ConfidentialityChecker';
 import PublishMetadataGenerator from '../components/video/PublishMetadataGenerator';
+import GoogleDrivePicker from '../components/video/GoogleDrivePicker';
 
 export default function AdminDashboard() {
     const queryClient = useQueryClient();
@@ -393,37 +394,46 @@ Make it professional and engaging.`,
                     </TabsContent>
 
                     <TabsContent value="upload">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Upload Raw Videos to Base44 Storage</CardTitle>
-                                <p className="text-sm text-gray-600">Upload your raw video files. They will be stored and available for review.</p>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <Label htmlFor="video-upload">Select video file(s) from your computer</Label>
-                                    <Input
-                                        id="video-upload"
-                                        type="file"
-                                        accept="video/*"
-                                        onChange={handleVideoUpload}
-                                        disabled={uploading}
-                                        className="mt-2"
-                                    />
-                                </div>
-                                {uploading && (
-                                    <div className="flex items-center gap-2 text-blue-600">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Uploading video to Base44 storage...
+                        <div className="grid lg:grid-cols-2 gap-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Upload from Computer</CardTitle>
+                                    <p className="text-sm text-gray-600">Upload video files from your local device</p>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div>
+                                        <Label htmlFor="video-upload">Select video file(s) from your computer</Label>
+                                        <Input
+                                            id="video-upload"
+                                            type="file"
+                                            accept="video/*"
+                                            onChange={handleVideoUpload}
+                                            disabled={uploading}
+                                            className="mt-2"
+                                        />
                                     </div>
-                                )}
-                                {videoUrl && (
-                                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                                        <p className="text-sm text-green-800">✓ Video uploaded to Base44 storage</p>
-                                        <p className="text-xs text-gray-600 mt-1">Go to "All Videos" tab to review it</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    {uploading && (
+                                        <div className="flex items-center gap-2 text-blue-600">
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Uploading video to Base44 storage...
+                                        </div>
+                                    )}
+                                    {videoUrl && (
+                                        <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                                            <p className="text-sm text-green-800">✓ Video uploaded to Base44 storage</p>
+                                            <p className="text-xs text-gray-600 mt-1">Go to "All Videos" tab to review it</p>
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <GoogleDrivePicker 
+                                onFilesUploaded={(videos) => {
+                                    queryClient.invalidateQueries({ queryKey: ['videos'] });
+                                    setActiveTab('videos');
+                                }}
+                            />
+                        </div>
                     </TabsContent>
 
                     <TabsContent value="review">
