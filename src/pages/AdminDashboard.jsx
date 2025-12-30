@@ -96,65 +96,18 @@ export default function AdminDashboard() {
 
         setGeneratingCaptions(true);
         try {
-            toast.info('Uploading video to AssemblyAI...');
+            toast.info('Generating captions with AssemblyAI...');
             
-            // Step 1: Upload video to AssemblyAI
-            const uploadResponse = await fetch('https://api.assemblyai.com/v2/upload', {
-                method: 'POST',
-                headers: {
-                    'authorization': process.env.ASSEMBLYAI_API_KEY || 'YOUR_KEY_HERE'
-                },
-                body: await fetch(videoUrl).then(r => r.blob())
+            const response = await base44.functions.invoke('generateCaptions', {
+                video_url: videoUrl
             });
-            
-            if (!uploadResponse.ok) {
-                throw new Error('Failed to upload video to AssemblyAI');
+
+            if (response.data.success) {
+                setCaptionsText(response.data.captions);
+                toast.success('Captions generated successfully!');
+            } else {
+                throw new Error(response.data.error || 'Caption generation failed');
             }
-            
-            const { upload_url } = await uploadResponse.json();
-            
-            // Step 2: Request transcription
-            toast.info('Generating captions...');
-            const transcriptResponse = await fetch('https://api.assemblyai.com/v2/transcript', {
-                method: 'POST',
-                headers: {
-                    'authorization': process.env.ASSEMBLYAI_API_KEY || 'YOUR_KEY_HERE',
-                    'content-type': 'application/json'
-                },
-                body: JSON.stringify({
-                    audio_url: upload_url,
-                    format_text: false
-                })
-            });
-            
-            const { id: transcriptId } = await transcriptResponse.json();
-            
-            // Step 3: Poll for completion
-            let transcript = null;
-            while (!transcript || transcript.status !== 'completed') {
-                await new Promise(resolve => setTimeout(resolve, 3000));
-                const pollResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}`, {
-                    headers: {
-                        'authorization': process.env.ASSEMBLYAI_API_KEY || 'YOUR_KEY_HERE'
-                    }
-                });
-                transcript = await pollResponse.json();
-                
-                if (transcript.status === 'error') {
-                    throw new Error('Transcription failed');
-                }
-            }
-            
-            // Step 4: Get SRT format
-            const srtResponse = await fetch(`https://api.assemblyai.com/v2/transcript/${transcriptId}/srt`, {
-                headers: {
-                    'authorization': process.env.ASSEMBLYAI_API_KEY || 'YOUR_KEY_HERE'
-                }
-            });
-            
-            const srtText = await srtResponse.text();
-            setCaptionsText(srtText);
-            toast.success('Captions generated successfully!');
         } catch (error) {
             toast.error('Caption generation failed: ' + error.message);
         } finally {
