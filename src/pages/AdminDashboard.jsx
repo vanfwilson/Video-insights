@@ -8,11 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Loader2, Sparkles, FileText, Image as ImageIcon, Send, Video } from 'lucide-react';
+import { Upload, Loader2, Sparkles, FileText, Image as ImageIcon, Send, Video, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import VideoList from '../components/video/VideoList';
 import ConfidentialityChecker from '../components/video/ConfidentialityChecker';
+import PublishMetadataGenerator from '../components/video/PublishMetadataGenerator';
 
 export default function AdminDashboard() {
     const queryClient = useQueryClient();
@@ -340,7 +341,7 @@ Make it professional and engaging.`,
                 {/* Status Filter Bar */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     {[
-                        { status: 'draft', label: 'Raw / Draft', count: videos.filter(v => v.status === 'draft').length },
+                        { status: 'draft', label: 'For Security Review', count: videos.filter(v => v.status === 'draft').length },
                         { status: 'ready_to_publish', label: 'Ready to Publish', count: videos.filter(v => v.status === 'ready_to_publish').length },
                         { status: 'published', label: 'Published', count: videos.filter(v => v.status === 'published').length },
                         { status: 'all', label: 'All Videos', count: videos.length }
@@ -370,6 +371,10 @@ Make it professional and engaging.`,
                         <TabsTrigger value="review">
                             <FileText className="w-4 h-4 mr-2" />
                             Review & Approve
+                        </TabsTrigger>
+                        <TabsTrigger value="publish">
+                            <Send className="w-4 h-4 mr-2" />
+                            Publish to YouTube
                         </TabsTrigger>
                     </TabsList>
 
@@ -650,6 +655,81 @@ Make it professional and engaging.`,
                             </CardContent>
                         </Card>
                     </div>
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="publish">
+                        <div className="max-w-4xl mx-auto">
+                            {!selectedVideo ? (
+                                <Card>
+                                    <CardContent className="p-12 text-center">
+                                        <Send className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                                        <h3 className="text-lg font-semibold mb-2">Select a Video to Publish</h3>
+                                        <p className="text-gray-600 mb-4">
+                                            Choose a video from "All Videos" with status "Ready to Publish"
+                                        </p>
+                                        <Button onClick={() => setActiveTab('videos')}>
+                                            Go to All Videos
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            ) : selectedVideo.status !== 'ready_to_publish' ? (
+                                <Card>
+                                    <CardContent className="p-12 text-center">
+                                        <AlertTriangle className="w-12 h-12 text-yellow-600 mx-auto mb-4" />
+                                        <h3 className="text-lg font-semibold mb-2">Video Not Ready</h3>
+                                        <p className="text-gray-600 mb-4">
+                                            This video needs to be reviewed and approved first
+                                        </p>
+                                        <Button onClick={() => setActiveTab('review')}>
+                                            Go to Review & Approve
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <div className="space-y-6">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Publishing: {selectedVideo.title}</CardTitle>
+                                            <p className="text-sm text-gray-600">
+                                                AI will generate YouTube-compliant metadata from your captions
+                                            </p>
+                                        </CardHeader>
+                                        <CardContent>
+                                            {selectedVideo.file_url && (
+                                                <video 
+                                                    src={selectedVideo.file_url} 
+                                                    controls 
+                                                    className="w-full rounded-lg"
+                                                    style={{ maxHeight: '400px' }}
+                                                />
+                                            )}
+                                        </CardContent>
+                                    </Card>
+
+                                    <PublishMetadataGenerator
+                                        video={selectedVideo}
+                                        onMetadataApproved={async (metadata) => {
+                                            try {
+                                                await base44.entities.Video.update(selectedVideo.id, {
+                                                    title: metadata.title,
+                                                    description: metadata.description,
+                                                    hashtags: metadata.hashtags.split('#').filter(h => h.trim()).map(h => h.trim()),
+                                                    status: 'published'
+                                                });
+
+                                                // TODO: Call your YouTube publishing webhook here
+                                                toast.success('Video published to YouTube!');
+                                                queryClient.invalidateQueries({ queryKey: ['videos'] });
+                                                setSelectedVideo(null);
+                                                setActiveTab('videos');
+                                            } catch (error) {
+                                                toast.error('Publishing failed: ' + error.message);
+                                            }
+                                        }}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </TabsContent>
                 </Tabs>
