@@ -73,6 +73,7 @@ export default function GoogleDrivePicker({ onFilesUploaded }) {
                 
                 try {
                     setUploadProgress({ current: i + 1, total: files.length });
+                    toast.info(`Downloading ${file.name} from Google Drive...`);
 
                     // Download from Google Drive and upload to Base44
                     const response = await base44.functions.invoke('downloadFromGoogleDrive', {
@@ -98,6 +99,7 @@ export default function GoogleDrivePicker({ onFilesUploaded }) {
                     }
                 } catch (error) {
                     console.error(`Failed to upload ${file.name}:`, error);
+                    toast.error(`Failed: ${file.name} - ${error.message}`);
                     results.push({
                         name: file.name,
                         success: false,
