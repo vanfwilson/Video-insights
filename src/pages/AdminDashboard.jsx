@@ -336,6 +336,26 @@ Make it professional and engaging.`,
                     <p className="text-gray-600">Manage and publish videos to YouTube</p>
                 </div>
 
+                {/* Status Filter Bar */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    {[
+                        { status: 'draft', label: 'Raw / Draft', count: videos.filter(v => v.status === 'draft').length },
+                        { status: 'ready_to_publish', label: 'Ready to Publish', count: videos.filter(v => v.status === 'ready_to_publish').length },
+                        { status: 'published', label: 'Published', count: videos.filter(v => v.status === 'published').length },
+                        { status: 'all', label: 'All Videos', count: videos.length }
+                    ].map(({ status, label, count }) => (
+                        <Card 
+                            key={status}
+                            className="cursor-pointer hover:shadow-lg transition-shadow"
+                        >
+                            <CardContent className="p-4 text-center">
+                                <div className="text-3xl font-bold text-gray-900">{count}</div>
+                                <div className="text-sm text-gray-600 mt-1">{label}</div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+
                 <Tabs defaultValue="videos" className="space-y-6">
                     <TabsList>
                         <TabsTrigger value="videos">
