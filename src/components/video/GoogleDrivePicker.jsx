@@ -35,16 +35,27 @@ export default function GoogleDrivePicker({ onFilesUploaded }) {
             return;
         }
 
-        // Create picker
-        const picker = new google.picker.PickerBuilder()
-            .addView(google.picker.ViewId.DOCS)
-            .setOAuthToken('dummy') // We use connector auth, not client-side OAuth
-            .setCallback(handlePickerCallback)
-            .setTitle('Select Files from Google Drive')
-            .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-            .build();
+        try {
+            // Get OAuth token from backend
+            const tokenResponse = await base44.functions.invoke('getGoogleDriveToken', {});
+            
+            if (!tokenResponse.data.token) {
+                throw new Error('Failed to get Google Drive access token');
+            }
 
-        picker.setVisible(true);
+            // Create picker with real token
+            const picker = new google.picker.PickerBuilder()
+                .addView(google.picker.ViewId.DOCS)
+                .setOAuthToken(tokenResponse.data.token)
+                .setCallback(handlePickerCallback)
+                .setTitle('Select Files from Google Drive')
+                .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+                .build();
+
+            picker.setVisible(true);
+        } catch (error) {
+            toast.error('Failed to open Google Drive picker: ' + error.message);
+        }
     };
 
     const handlePickerCallback = async (data) => {

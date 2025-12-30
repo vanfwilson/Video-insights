@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import VideoList from '../components/video/VideoList';
 import ConfidentialityChecker from '../components/video/ConfidentialityChecker';
 import PublishMetadataGenerator from '../components/video/PublishMetadataGenerator';
+import GoogleDrivePicker from '../components/video/GoogleDrivePicker';
 
 export default function AdminDashboard() {
     const queryClient = useQueryClient();
@@ -374,33 +375,42 @@ Make it professional and engaging.`,
                     </TabsContent>
 
                     <TabsContent value="upload">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Upload Videos</CardTitle>
-                                <p className="text-sm text-gray-600">Select multiple video files to upload</p>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <Label htmlFor="video-upload">Select video file(s) from your computer</Label>
-                                    <Input
-                                        id="video-upload"
-                                        type="file"
-                                        accept="video/*"
-                                        multiple
-                                        onChange={handleVideoUpload}
-                                        disabled={uploading}
-                                        className="mt-2"
-                                    />
-                                    <p className="text-xs text-gray-500 mt-2">You can select multiple files at once</p>
-                                </div>
-                                {uploading && (
-                                    <div className="flex items-center gap-2 text-blue-600">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Uploading videos to Base44 storage...
+                        <div className="grid lg:grid-cols-2 gap-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Upload from Computer</CardTitle>
+                                    <p className="text-sm text-gray-600">Select multiple video files to upload</p>
+                                </CardHeader>
+                                <CardContent className="space-y-4">
+                                    <div>
+                                        <Label htmlFor="video-upload">Select video file(s) from your computer</Label>
+                                        <Input
+                                            id="video-upload"
+                                            type="file"
+                                            accept="video/*"
+                                            multiple
+                                            onChange={handleVideoUpload}
+                                            disabled={uploading}
+                                            className="mt-2"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-2">You can select multiple files at once</p>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                    {uploading && (
+                                        <div className="flex items-center gap-2 text-blue-600">
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Uploading videos to Base44 storage...
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+
+                            <GoogleDrivePicker 
+                                onFilesUploaded={(videos) => {
+                                    queryClient.invalidateQueries({ queryKey: ['videos'] });
+                                    setActiveTab('videos');
+                                }}
+                            />
+                        </div>
                     </TabsContent>
 
                     <TabsContent value="review">
