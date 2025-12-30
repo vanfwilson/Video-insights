@@ -6,7 +6,9 @@ import { Video, Eye, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function VideoList({ videos, onSelectVideo, onDeleteVideo }) {
-    if (videos.length === 0) {
+    console.log('VideoList received videos:', videos);
+    
+    if (!videos || videos.length === 0) {
         return (
             <div className="text-center py-12 bg-white rounded-lg border">
                 <Video className="w-12 h-12 text-gray-400 mx-auto mb-4" />
@@ -34,13 +36,13 @@ export default function VideoList({ videos, onSelectVideo, onDeleteVideo }) {
                             )}
                             <div className="absolute top-2 right-2">
                                 <Badge variant={video.status === 'published' ? 'default' : 'secondary'}>
-                                    {video.status || 'draft'}
+                                    {video.status || video.data?.status || 'draft'}
                                 </Badge>
                             </div>
                         </div>
                         <div className="p-4">
                             <h3 className="font-semibold mb-2 line-clamp-2">
-                                {video.title || 'Untitled Video'}
+                                {video.title || video.data?.title || 'Untitled Video'}
                             </h3>
                             <p className="text-xs text-gray-500 mb-3">
                                 Uploaded {format(new Date(video.created_date), 'MMM d, yyyy')}
