@@ -36,8 +36,6 @@ Deno.serve(async (req) => {
         const fileBlob = await driveResponse.blob();
 
         // Upload to Base44 storage
-        const formData = new FormData();
-        formData.append('file', fileBlob, fileName || 'video.mp4');
 
         const uploadResult = await base44.asServiceRole.integrations.Core.UploadFile({
             file: fileBlob

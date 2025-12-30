@@ -37,10 +37,10 @@ export default function GoogleDrivePicker({ onFilesUploaded }) {
 
         // Create picker
         const picker = new google.picker.PickerBuilder()
-            .addView(google.picker.ViewId.DOCS_VIDEOS)
+            .addView(google.picker.ViewId.DOCS)
             .setOAuthToken('dummy') // We use connector auth, not client-side OAuth
             .setCallback(handlePickerCallback)
-            .setTitle('Select Videos from Google Drive')
+            .setTitle('Select Files from Google Drive')
             .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
             .build();
 
@@ -114,7 +114,7 @@ export default function GoogleDrivePicker({ onFilesUploaded }) {
             <CardHeader>
                 <CardTitle>Import from Google Drive</CardTitle>
                 <p className="text-sm text-gray-600">
-                    Select multiple video files from your Google Drive to upload
+                    Select multiple files from your Google Drive to upload
                 </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -137,7 +137,7 @@ export default function GoogleDrivePicker({ onFilesUploaded }) {
                     ) : (
                         <>
                             <FolderOpen className="w-5 h-5 mr-2" />
-                            Select Videos from Google Drive
+                            Select Files from Google Drive
                         </>
                     )}
                 </Button>
