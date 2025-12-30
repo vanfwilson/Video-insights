@@ -22,6 +22,33 @@ export default function AdminDashboard() {
     const queryClient = useQueryClient();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('videos');
+
+    const { data: currentUser } = useQuery({
+        queryKey: ['currentUser'],
+        queryFn: () => base44.auth.me()
+    });
+
+    // Check if user has admin role
+    if (currentUser && currentUser.role !== 'admin' && currentUser.app_role !== 'admin') {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+                <div className="max-w-4xl mx-auto">
+                    <Card>
+                        <CardContent className="p-12 text-center">
+                            <AlertTriangle className="w-12 h-12 text-yellow-600 mx-auto mb-4" />
+                            <h3 className="text-lg font-semibold mb-2">Admin Access Required</h3>
+                            <p className="text-gray-600 mb-4">
+                                You need admin privileges to access this dashboard
+                            </p>
+                            <Button onClick={() => navigate(createPageUrl('ClientSearch'))}>
+                                Go to Search
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
     const [selectedVideo, setSelectedVideo] = useState(null);
     const [videoFile, setVideoFile] = useState(null);
     const [videoUrl, setVideoUrl] = useState('');

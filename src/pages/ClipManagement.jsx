@@ -15,6 +15,29 @@ export default function ClipManagement() {
     const location = useLocation();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
+
+    const { data: currentUser } = useQuery({
+        queryKey: ['currentUser'],
+        queryFn: () => base44.auth.me()
+    });
+
+    // Check if user has creator or admin role
+    if (currentUser && currentUser.role !== 'admin' && currentUser.app_role !== 'admin' && currentUser.app_role !== 'creator') {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+                <div className="max-w-4xl mx-auto">
+                    <Card>
+                        <CardContent className="p-12 text-center">
+                            <p className="text-gray-500 mb-4">You need creator or admin access to manage clips</p>
+                            <Button onClick={() => navigate('/ClientSearch')}>
+                                Go to Search
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+        );
+    }
     const [selectedClip, setSelectedClip] = useState(null);
     const [publishingClip, setPublishingClip] = useState(null);
 
