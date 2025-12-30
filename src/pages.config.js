@@ -2,8 +2,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import ClientSearch from './pages/ClientSearch';
 import ClipManagement from './pages/ClipManagement';
 import ClipPublisher from './pages/ClipPublisher';
-import VideoReview from './pages/VideoReview';
 import UserManagement from './pages/UserManagement';
+import VideoReview from './pages/VideoReview';
 import __Layout from './Layout.jsx';
 
 
@@ -12,8 +12,8 @@ export const PAGES = {
     "ClientSearch": ClientSearch,
     "ClipManagement": ClipManagement,
     "ClipPublisher": ClipPublisher,
-    "VideoReview": VideoReview,
     "UserManagement": UserManagement,
+    "VideoReview": VideoReview,
 }
 
 export const pagesConfig = {

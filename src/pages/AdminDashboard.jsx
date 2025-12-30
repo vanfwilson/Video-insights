@@ -16,7 +16,6 @@ import { toast } from 'sonner';
 import VideoList from '../components/video/VideoList';
 import ConfidentialityChecker from '../components/video/ConfidentialityChecker';
 import PublishMetadataGenerator from '../components/video/PublishMetadataGenerator';
-import GoogleDrivePicker from '../components/video/GoogleDrivePicker';
 
 export default function AdminDashboard() {
     const queryClient = useQueryClient();
@@ -78,26 +77,27 @@ export default function AdminDashboard() {
     });
 
     const handleVideoUpload = async (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
 
         setUploading(true);
         try {
-            const { file_url } = await base44.integrations.Core.UploadFile({ file });
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                toast.info(`Uploading ${i + 1} of ${files.length}: ${file.name}`);
+                
+                const { file_url } = await base44.integrations.Core.UploadFile({ file });
+                
+                await base44.entities.Video.create({
+                    title: file.name.replace(/\.[^/.]+$/, ''),
+                    file_url: file_url,
+                    status: 'draft'
+                });
+            }
             
-            // Create video entity in database
-            const video = await base44.entities.Video.create({
-                title: file.name.replace(/\.[^/.]+$/, ''),
-                file_url: file_url,
-                status: 'draft'
-            });
-            
-            setVideoFile(file);
-            setVideoUrl(file_url);
-            setSelectedVideo(video);
-            setTitle(video.title);
             queryClient.invalidateQueries({ queryKey: ['videos'] });
-            toast.success('Video uploaded to Base44 storage!');
+            toast.success(`${files.length} video(s) uploaded successfully!`);
+            setActiveTab('videos');
         } catch (error) {
             toast.error('Upload failed: ' + error.message);
         } finally {
@@ -374,46 +374,33 @@ Make it professional and engaging.`,
                     </TabsContent>
 
                     <TabsContent value="upload">
-                        <div className="grid lg:grid-cols-2 gap-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Upload from Computer</CardTitle>
-                                    <p className="text-sm text-gray-600">Upload video files from your local device</p>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div>
-                                        <Label htmlFor="video-upload">Select video file(s) from your computer</Label>
-                                        <Input
-                                            id="video-upload"
-                                            type="file"
-                                            accept="video/*"
-                                            onChange={handleVideoUpload}
-                                            disabled={uploading}
-                                            className="mt-2"
-                                        />
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Upload Videos</CardTitle>
+                                <p className="text-sm text-gray-600">Select multiple video files to upload</p>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <div>
+                                    <Label htmlFor="video-upload">Select video file(s) from your computer</Label>
+                                    <Input
+                                        id="video-upload"
+                                        type="file"
+                                        accept="video/*"
+                                        multiple
+                                        onChange={handleVideoUpload}
+                                        disabled={uploading}
+                                        className="mt-2"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">You can select multiple files at once</p>
+                                </div>
+                                {uploading && (
+                                    <div className="flex items-center gap-2 text-blue-600">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Uploading videos to Base44 storage...
                                     </div>
-                                    {uploading && (
-                                        <div className="flex items-center gap-2 text-blue-600">
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            Uploading video to Base44 storage...
-                                        </div>
-                                    )}
-                                    {videoUrl && (
-                                        <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                                            <p className="text-sm text-green-800">✓ Video uploaded to Base44 storage</p>
-                                            <p className="text-xs text-gray-600 mt-1">Go to "All Videos" tab to review it</p>
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            <GoogleDrivePicker 
-                                onFilesUploaded={(videos) => {
-                                    queryClient.invalidateQueries({ queryKey: ['videos'] });
-                                    setActiveTab('videos');
-                                }}
-                            />
-                        </div>
+                                )}
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     <TabsContent value="review">
