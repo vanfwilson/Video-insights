@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from './utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,6 +19,7 @@ import PublishMetadataGenerator from '../components/video/PublishMetadataGenerat
 
 export default function AdminDashboard() {
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('videos');
     const [selectedVideo, setSelectedVideo] = useState(null);
     const [videoFile, setVideoFile] = useState(null);
@@ -715,14 +718,18 @@ Make it professional and engaging.`,
                                                     title: metadata.title,
                                                     description: metadata.description,
                                                     hashtags: metadata.hashtags.split('#').filter(h => h.trim()).map(h => h.trim()),
-                                                    status: 'published'
+                                                    status: 'published',
+                                                    youtube_url: 'https://youtube.com/watch?v=PLACEHOLDER', // TODO: Replace with actual YouTube URL
+                                                    youtube_video_id: 'PLACEHOLDER' // TODO: Replace with actual video ID
                                                 });
 
-                                                // TODO: Call your YouTube publishing webhook here
                                                 toast.success('Video published to YouTube!');
                                                 queryClient.invalidateQueries({ queryKey: ['videos'] });
-                                                setSelectedVideo(null);
-                                                setActiveTab('videos');
+                                                
+                                                // Navigate to clip management
+                                                navigate(createPageUrl('ClipManagement') + `?video_id=${selectedVideo.id}`, {
+                                                    state: { video: { ...selectedVideo, status: 'published' } }
+                                                });
                                             } catch (error) {
                                                 toast.error('Publishing failed: ' + error.message);
                                             }
