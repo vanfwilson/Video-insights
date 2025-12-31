@@ -14,6 +14,7 @@ import { Upload, Loader2, Sparkles, FileText, Image as ImageIcon, Send, Video, A
 import { toast } from 'sonner';
 
 import VideoList from '../components/video/VideoList';
+import VideoSearch from '../components/video/VideoSearch';
 import ConfidentialityChecker from '../components/video/ConfidentialityChecker';
 import PublishMetadataGenerator from '../components/video/PublishMetadataGenerator';
 import GoogleDrivePicker from '../components/video/GoogleDrivePicker';
@@ -23,6 +24,7 @@ export default function AdminDashboard() {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('videos');
     const [statusFilter, setStatusFilter] = useState('all');
+    const [filteredVideos, setFilteredVideos] = useState([]);
 
     const { data: currentUser } = useQuery({
         queryKey: ['currentUser'],
@@ -388,27 +390,21 @@ Make it professional and engaging.`,
                             </div>
                         ) : (
                             <div>
-                                {(() => {
-                                    const filtered = statusFilter === 'all' 
-                                        ? videos 
-                                        : videos.filter(v => v.status === statusFilter);
-                                    return (
-                                        <>
-                                            <p className="text-sm text-gray-600 mb-4">
-                                                Found {filtered?.length || 0} videos
-                                                {statusFilter !== 'all' && ` (${statusFilter})`}
-                                            </p>
-                                            <VideoList
-                                                videos={filtered}
-                                                onSelectVideo={(video) => {
-                                                    handleSelectVideo(video);
-                                                    setActiveTab('review');
-                                                }}
-                                                onDeleteVideo={(id) => deleteVideoMutation.mutate(id)}
-                                            />
-                                        </>
-                                    );
-                                })()}
+                                <VideoSearch
+                                    videos={videos}
+                                    onFilteredResults={setFilteredVideos}
+                                />
+                                <p className="text-sm text-gray-600 mb-4">
+                                    Showing {filteredVideos.length} of {videos.length} videos
+                                </p>
+                                <VideoList
+                                    videos={filteredVideos}
+                                    onSelectVideo={(video) => {
+                                        handleSelectVideo(video);
+                                        setActiveTab('review');
+                                    }}
+                                    onDeleteVideo={(id) => deleteVideoMutation.mutate(id)}
+                                />
                             </div>
                         )}
                     </TabsContent>
