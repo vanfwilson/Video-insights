@@ -93,47 +93,35 @@ export default function AdminDashboard() {
         if (files.length === 0) return;
 
         setUploading(true);
-        console.log('Starting upload of', files.length, 'file(s)');
         
         try {
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                console.log(`Uploading file ${i + 1}:`, file.name, 'Size:', file.size, 'Type:', file.type);
-                toast.info(`Uploading ${i + 1} of ${files.length}: ${file.name}`);
+                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+                console.log(`File ${i + 1}: ${file.name}, Size: ${sizeMB}MB, Type: ${file.type}`);
                 
-                try {
-                    const uploadResult = await base44.integrations.Core.UploadFile({ file });
-                    console.log('Upload result:', uploadResult);
-                    
-                    if (!uploadResult.file_url) {
-                        throw new Error('No file_url returned from upload');
-                    }
-                    
-                    const videoData = {
-                        title: file.name.replace(/\.[^/.]+$/, ''),
-                        file_url: uploadResult.file_url,
-                        status: 'draft'
-                    };
-                    console.log('Creating video entity:', videoData);
-                    
-                    const createdVideo = await base44.entities.Video.create(videoData);
-                    console.log('Video created:', createdVideo);
-                    
-                    toast.success(`✓ ${file.name} uploaded`);
-                } catch (fileError) {
-                    console.error(`Failed to upload ${file.name}:`, fileError);
-                    toast.error(`Failed: ${file.name} - ${fileError.message}`);
-                    throw fileError;
-                }
+                toast.info(`Uploading ${file.name} (${sizeMB}MB) - this may take a while...`);
+                
+                const uploadResult = await base44.integrations.Core.UploadFile({ file });
+                console.log('Upload complete:', uploadResult);
+                
+                const videoData = {
+                    title: file.name.replace(/\.[^/.]+$/, ''),
+                    file_url: uploadResult.file_url,
+                    status: 'draft'
+                };
+                
+                const createdVideo = await base44.entities.Video.create(videoData);
+                console.log('Video entity created:', createdVideo);
+                
+                toast.success(`✓ ${file.name} uploaded successfully!`);
             }
             
-            console.log('All uploads complete, refreshing video list');
             queryClient.invalidateQueries({ queryKey: ['videos'] });
-            toast.success(`${files.length} video(s) uploaded successfully!`);
             setActiveTab('videos');
         } catch (error) {
             console.error('Upload error:', error);
-            toast.error('Upload failed: ' + error.message);
+            toast.error(`Upload failed: ${error.message}`);
         } finally {
             setUploading(false);
         }
