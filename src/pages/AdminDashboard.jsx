@@ -155,17 +155,24 @@ export default function AdminDashboard() {
 
         setGeneratingCaptions(true);
         try {
-            toast.info('Generating captions with AssemblyAI...');
+            toast.info('Generating captions...');
             
-            const response = await base44.functions.invoke('generateCaptions', {
-                video_url: videoUrl
+            const formData = new FormData();
+            formData.append('video_url', videoUrl);
+            formData.append('language_code', 'en');
+            
+            const response = await fetch('https://youtube-api.aiautomationauthority.com/transcribe', {
+                method: 'POST',
+                body: formData
             });
 
-            if (response.data.success) {
-                setCaptionsText(response.data.captions);
+            const data = await response.json();
+
+            if (data.success) {
+                setCaptionsText(data.srt);
                 toast.success('Captions generated successfully!');
             } else {
-                throw new Error(response.data.error || 'Caption generation failed');
+                throw new Error('Caption generation failed');
             }
         } catch (error) {
             toast.error('Caption generation failed: ' + error.message);
