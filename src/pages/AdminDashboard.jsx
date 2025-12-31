@@ -90,61 +90,26 @@ export default function AdminDashboard() {
     });
 
     const handleVideoUpload = async (e) => {
-        console.log('handleVideoUpload called!', e);
-        console.log('Event target:', e.target);
-        console.log('Files:', e.target.files);
-        
-        const files = Array.from(e.target.files);
-        console.log('Files array:', files);
-        
-        if (files.length === 0) {
-            console.log('No files selected');
-            return;
-        }
+        const file = e.target.files?.[0];
+        if (!file) return;
 
         setUploading(true);
-        console.log('=== UPLOAD START ===');
-        
         try {
-            const file = files[0];
-            const sizeMB = (file.size / 1024 / 1024).toFixed(2);
-            
-            console.log('File:', file.name);
-            console.log('Size:', sizeMB, 'MB');
-            console.log('Type:', file.type);
-            
-            toast.info(`Uploading ${file.name} (${sizeMB}MB)...`);
-            
-            console.log('Calling base44.integrations.Core.UploadFile...');
-            const uploadResult = await base44.integrations.Core.UploadFile({ file });
-            console.log('UploadFile returned:', uploadResult);
-            
-            if (!uploadResult?.file_url) {
-                throw new Error('No file_url in response: ' + JSON.stringify(uploadResult));
-            }
-            
-            console.log('Creating video entity...');
-            const videoData = {
+            toast.info(`Uploading ${file.name}...`);
+            const { file_url } = await base44.integrations.Core.UploadFile({ file });
+            await base44.entities.Video.create({
                 title: file.name.replace(/\.[^/.]+$/, ''),
-                file_url: uploadResult.file_url,
+                file_url,
                 status: 'draft'
-            };
-            
-            const createdVideo = await base44.entities.Video.create(videoData);
-            console.log('Video created:', createdVideo);
-            
-            toast.success(`✓ Uploaded successfully!`);
+            });
+            toast.success('Video uploaded!');
             queryClient.invalidateQueries({ queryKey: ['videos'] });
             setActiveTab('videos');
+            e.target.value = '';
         } catch (error) {
-            console.error('=== ERROR ===');
-            console.error('Type:', error.constructor.name);
-            console.error('Message:', error.message);
-            console.error('Full error:', error);
-            toast.error(`Failed: ${error.message}`);
+            toast.error('Upload failed: ' + error.message);
         } finally {
             setUploading(false);
-            console.log('=== DONE ===');
         }
     };
 
@@ -449,84 +414,47 @@ Make it professional and engaging.`,
                     </TabsContent>
 
                     <TabsContent value="upload">
-                        <div className="grid lg:grid-cols-2 gap-6">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Upload from Computer</CardTitle>
-                                    <p className="text-sm text-gray-600">Select multiple video files to upload</p>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div>
-                                        <Label htmlFor="video-upload">Select video file(s) from your computer</Label>
-                                        <Input
-                                            id="video-upload"
-                                            type="file"
-                                            accept="video/*"
-                                            multiple
-                                            onChange={handleVideoUpload}
-                                            disabled={uploading}
-                                            className="mt-2"
-                                        />
-                                        <p className="text-xs text-gray-500 mt-2">You can select multiple files at once</p>
+                        <Card className="max-w-2xl mx-auto">
+                            <CardHeader>
+                                <CardTitle>Upload Video</CardTitle>
+                                <p className="text-sm text-gray-600">Select a video file to upload</p>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <Input
+                                    type="file"
+                                    accept="video/*"
+                                    onChange={handleVideoUpload}
+                                    disabled={uploading}
+                                />
+                                {uploading && (
+                                    <div className="flex items-center gap-2 text-blue-600">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Uploading...
                                     </div>
-                                    {uploading && (
-                                        <div className="flex items-center gap-2 text-blue-600">
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            Uploading videos to Base44 storage...
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-
-                            <GoogleDrivePicker 
-                                onFilesUploaded={(videos) => {
-                                    queryClient.invalidateQueries({ queryKey: ['videos'] });
-                                    setActiveTab('videos');
-                                }}
-                            />
-                        </div>
+                                )}
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     <TabsContent value="review">
                         <div className="grid lg:grid-cols-2 gap-6">
                     {/* Left Column - Video & Captions */}
                     <div className="space-y-6">
-                        {/* Video Upload */}
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>1. Upload Video</CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div>
-                                    <Label htmlFor="video-upload-review">Select video file from your computer</Label>
-                                    <Input
-                                        id="video-upload-review"
-                                        type="file"
-                                        accept="video/*"
-                                        onChange={handleVideoUpload}
-                                        disabled={uploading}
-                                        className="mt-2"
+                        {selectedVideo && selectedVideo.file_url && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Video Preview</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <video 
+                                        src={selectedVideo.file_url} 
+                                        controls 
+                                        className="w-full rounded-lg"
+                                        style={{ maxHeight: '300px' }}
                                     />
-                                </div>
-                                {uploading && (
-                                    <div className="flex items-center gap-2 text-blue-600">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Uploading video...
-                                    </div>
-                                )}
-                                {videoUrl && (
-                                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-                                        <p className="text-sm text-green-800">✓ Video uploaded successfully</p>
-                                        <video 
-                                            src={videoUrl} 
-                                            controls 
-                                            className="w-full mt-3 rounded-lg"
-                                            style={{ maxHeight: '300px' }}
-                                        />
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+                        )}
 
                         {/* Captions */}
                         <Card>
