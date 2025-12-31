@@ -26,20 +26,28 @@ export default function ClipSuggestions({ video, onClipSelect }) {
         setGenerating(true);
         try {
             const result = await base44.integrations.Core.InvokeLLM({
-                prompt: `Analyze these video captions and identify 5-8 engaging clips for YouTube Shorts/social media. Each clip should be 30-90 seconds and cover a complete thought or topic.
+                prompt: `Use semantic analysis to identify 5-8 high-value clips that answer specific questions users would search for.
 
-CAPTIONS WITH TIMESTAMPS:
-${video.transcript_text}
+VIDEO: ${video.title}
+CAPTIONS: ${video.transcript_text}
 
-For each clip, provide:
-- start_time: Start time in seconds
-- end_time: End time in seconds
-- title: Engaging title for the clip (under 60 chars)
-- description: Brief description
-- topics: Array of relevant topics covered
-- confidence_score: How strong this clip is (0-1)
+For each clip, identify:
+- The implicit question being answered
+- Exact timestamps (seconds)
+- Searchable title with keywords
+- Description highlighting value
+- Topics/concepts covered
+- Search keywords for discoverability
+- Confidence score (0-1)
 
-Return 5-8 clips that would work well as standalone content.`,
+Prioritize segments that:
+- Answer common questions
+- Explain frameworks/methods
+- Provide actionable insights
+- Are self-contained
+- Have high semantic search value
+
+Return clips optimized for AI search:`,
                 response_json_schema: {
                     type: 'object',
                     properties: {
@@ -53,7 +61,8 @@ Return 5-8 clips that would work well as standalone content.`,
                                     title: { type: 'string' },
                                     description: { type: 'string' },
                                     topics: { type: 'array', items: { type: 'string' } },
-                                    confidence_score: { type: 'number' }
+                                    confidence_score: { type: 'number' },
+                                    search_keywords: { type: 'array', items: { type: 'string' } }
                                 }
                             }
                         }
