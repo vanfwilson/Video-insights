@@ -95,66 +95,47 @@ export default function AdminDashboard() {
 
         setUploading(true);
         console.log('=== UPLOAD START ===');
-        console.log('Number of files:', files.length);
-        console.log('Browser:', navigator.userAgent);
         
         try {
-            for (let i = 0; i < files.length; i++) {
-                const file = files[i];
-                const sizeMB = (file.size / 1024 / 1024).toFixed(2);
-                
-                console.log(`\n--- File ${i + 1}/${files.length} ---`);
-                console.log('Name:', file.name);
-                console.log('Size:', sizeMB, 'MB');
-                console.log('Type:', file.type);
-                console.log('Last Modified:', new Date(file.lastModified).toISOString());
-                
-                toast.info(`Uploading ${file.name} (${sizeMB}MB)...`);
-                
-                const startTime = Date.now();
-                console.log('Upload started at:', new Date().toISOString());
-                
-                try {
-                    const uploadResult = await base44.integrations.Core.UploadFile({ file });
-                    
-                    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
-                    console.log(`Upload completed in ${duration}s`);
-                    console.log('Upload result:', uploadResult);
-                    
-                    if (!uploadResult || !uploadResult.file_url) {
-                        throw new Error('No file_url in response');
-                    }
-                    
-                    const videoData = {
-                        title: file.name.replace(/\.[^/.]+$/, ''),
-                        file_url: uploadResult.file_url,
-                        status: 'draft'
-                    };
-                    
-                    console.log('Creating video entity with:', videoData);
-                    const createdVideo = await base44.entities.Video.create(videoData);
-                    console.log('Video entity created:', createdVideo);
-                    
-                    toast.success(`✓ ${file.name} uploaded in ${duration}s`);
-                } catch (fileError) {
-                    console.error(`FAILED - File ${i + 1}:`, fileError);
-                    console.error('Error stack:', fileError.stack);
-                    throw fileError;
-                }
+            const file = files[0];
+            const sizeMB = (file.size / 1024 / 1024).toFixed(2);
+            
+            console.log('File:', file.name);
+            console.log('Size:', sizeMB, 'MB');
+            console.log('Type:', file.type);
+            
+            toast.info(`Uploading ${file.name} (${sizeMB}MB)...`);
+            
+            console.log('Calling base44.integrations.Core.UploadFile...');
+            const uploadResult = await base44.integrations.Core.UploadFile({ file });
+            console.log('UploadFile returned:', uploadResult);
+            
+            if (!uploadResult?.file_url) {
+                throw new Error('No file_url in response: ' + JSON.stringify(uploadResult));
             }
             
-            console.log('=== ALL UPLOADS COMPLETE ===');
+            console.log('Creating video entity...');
+            const videoData = {
+                title: file.name.replace(/\.[^/.]+$/, ''),
+                file_url: uploadResult.file_url,
+                status: 'draft'
+            };
+            
+            const createdVideo = await base44.entities.Video.create(videoData);
+            console.log('Video created:', createdVideo);
+            
+            toast.success(`✓ Uploaded successfully!`);
             queryClient.invalidateQueries({ queryKey: ['videos'] });
             setActiveTab('videos');
         } catch (error) {
-            console.error('=== UPLOAD FAILED ===');
-            console.error('Error:', error);
-            console.error('Error type:', error.constructor.name);
-            console.error('Error message:', error.message);
-            toast.error(`Upload failed: ${error.message}`);
+            console.error('=== ERROR ===');
+            console.error('Type:', error.constructor.name);
+            console.error('Message:', error.message);
+            console.error('Full error:', error);
+            toast.error(`Failed: ${error.message}`);
         } finally {
             setUploading(false);
-            console.log('=== UPLOAD END ===');
+            console.log('=== DONE ===');
         }
     };
 
