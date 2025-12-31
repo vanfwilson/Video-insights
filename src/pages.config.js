@@ -4,6 +4,7 @@ import ClipManagement from './pages/ClipManagement';
 import ClipPublisher from './pages/ClipPublisher';
 import UserManagement from './pages/UserManagement';
 import VideoReview from './pages/VideoReview';
+import SemanticSearch from './pages/SemanticSearch';
 import __Layout from './Layout.jsx';
 
 
@@ -14,6 +15,7 @@ export const PAGES = {
     "ClipPublisher": ClipPublisher,
     "UserManagement": UserManagement,
     "VideoReview": VideoReview,
+    "SemanticSearch": SemanticSearch,
 }
 
 export const pagesConfig = {

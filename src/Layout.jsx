@@ -23,10 +23,10 @@ export default function Layout({ children, currentPageName }) {
                         <div className="flex items-center gap-6">
                             <h1 className="text-xl font-bold text-gray-900">Video Hub</h1>
                             <div className="flex gap-2">
-                                <Link to={createPageUrl('ClientSearch')}>
-                                    <Button variant={currentPageName === 'ClientSearch' ? 'default' : 'ghost'} size="sm">
+                                <Link to={createPageUrl('SemanticSearch')}>
+                                    <Button variant={currentPageName === 'SemanticSearch' ? 'default' : 'ghost'} size="sm">
                                         <Search className="w-4 h-4 mr-2" />
-                                        Search
+                                        AI Search
                                     </Button>
                                 </Link>
                                 {isCreator && (
