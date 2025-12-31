@@ -498,9 +498,9 @@ Make it professional and engaging.`,
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 <div>
-                                    <Label htmlFor="video-upload">Select video file from your computer</Label>
+                                    <Label htmlFor="video-upload-review">Select video file from your computer</Label>
                                     <Input
-                                        id="video-upload"
+                                        id="video-upload-review"
                                         type="file"
                                         accept="video/*"
                                         onChange={handleVideoUpload}
