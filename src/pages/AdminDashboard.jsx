@@ -90,8 +90,17 @@ export default function AdminDashboard() {
     });
 
     const handleVideoUpload = async (e) => {
+        console.log('handleVideoUpload called!', e);
+        console.log('Event target:', e.target);
+        console.log('Files:', e.target.files);
+        
         const files = Array.from(e.target.files);
-        if (files.length === 0) return;
+        console.log('Files array:', files);
+        
+        if (files.length === 0) {
+            console.log('No files selected');
+            return;
+        }
 
         setUploading(true);
         console.log('=== UPLOAD START ===');
