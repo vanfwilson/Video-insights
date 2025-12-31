@@ -100,10 +100,20 @@ export default function AdminDashboard() {
                 const sizeMB = (file.size / 1024 / 1024).toFixed(2);
                 console.log(`File ${i + 1}: ${file.name}, Size: ${sizeMB}MB, Type: ${file.type}`);
                 
-                toast.info(`Uploading ${file.name} (${sizeMB}MB) - this may take a while...`);
+                toast.info(`Uploading ${file.name} (${sizeMB}MB)...`);
                 
-                const uploadResult = await base44.integrations.Core.UploadFile({ file });
+                // Add timeout wrapper
+                const uploadPromise = base44.integrations.Core.UploadFile({ file });
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Upload timeout after 5 minutes')), 300000)
+                );
+                
+                const uploadResult = await Promise.race([uploadPromise, timeoutPromise]);
                 console.log('Upload complete:', uploadResult);
+                
+                if (!uploadResult || !uploadResult.file_url) {
+                    throw new Error('No file_url returned from upload');
+                }
                 
                 const videoData = {
                     title: file.name.replace(/\.[^/.]+$/, ''),
@@ -114,7 +124,7 @@ export default function AdminDashboard() {
                 const createdVideo = await base44.entities.Video.create(videoData);
                 console.log('Video entity created:', createdVideo);
                 
-                toast.success(`✓ ${file.name} uploaded successfully!`);
+                toast.success(`✓ ${file.name} uploaded!`);
             }
             
             queryClient.invalidateQueries({ queryKey: ['videos'] });
