@@ -1,0 +1,52 @@
+git commit -m "Exclude uploads folder from repo"
+git push github replit-latest
+rm 'uploads/187ca8e8d86f235b55849b6c935a1cfd'
+rm 'uploads/71c47ca318ab445e5e6b1cf4f7e2d07f'
+rm 'uploads/d659433bbbfdf1714005566815631a1b'
+rm 'uploads/test_composite.png'
+rm 'uploads/thumb_1_1767147362057.png'
+rm 'uploads/thumb_1_1767147577713.png'
+rm 'uploads/thumb_1_1767148047367.png'
+rm 'uploads/thumb_1_1767148491011.png'
+rm 'uploads/thumb_1_1767148746737.png'
+rm 'uploads/thumb_1_1767149006154.png'
+rm 'uploads/thumb_1_1767150237007.png'
+rm 'uploads/thumb_1_1767150801742.png'
+rm 'uploads/thumb_1_1767151636042.png'
+rm 'uploads/thumb_1_1767153305246.png'
+rm 'uploads/thumb_1_1767153321975.png'
+rm 'uploads/thumb_1_1767153502034.png'
+rm 'uploads/thumb_1_1767153877700.png'
+rm 'uploads/thumb_1_1767154263012.png'
+rm 'uploads/thumb_1_1767154900721.png'
+[replit-latest 2f15179] Exclude uploads folder from repo
+ 19 files changed, 0 insertions(+), 0 deletions(-)
+ delete mode 100644 uploads/187ca8e8d86f235b55849b6c935a1cfd
+ delete mode 100644 uploads/71c47ca318ab445e5e6b1cf4f7e2d07f
+ delete mode 100644 uploads/d659433bbbfdf1714005566815631a1b
+ delete mode 100644 uploads/test_composite.png
+ delete mode 100644 uploads/thumb_1_1767147362057.png
+ delete mode 100644 uploads/thumb_1_1767147577713.png
+ delete mode 100644 uploads/thumb_1_1767148047367.png
+ delete mode 100644 uploads/thumb_1_1767148491011.png
+ delete mode 100644 uploads/thumb_1_1767148746737.png
+ delete mode 100644 uploads/thumb_1_1767149006154.png
+ delete mode 100644 uploads/thumb_1_1767150237007.png
+ delete mode 100644 uploads/thumb_1_1767150801742.png
+ delete mode 100644 uploads/thumb_1_1767151636042.png
+ delete mode 100644 uploads/thumb_1_1767153305246.png
+ delete mode 100644 uploads/thumb_1_1767153321975.png
+ delete mode 100644 uploads/thumb_1_1767153502034.png
+ delete mode 100644 uploads/thumb_1_1767153877700.png
+ delete mode 100644 uploads/thumb_1_1767154263012.png
+ delete mode 100644 uploads/thumb_1_1767154900721.png
+Enumerating objects: 1411, done.
+Counting objects: 100% (1411/1411), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (1396/1396), done.
+error: RPC failed; HTTP 408 curl 22 The requested URL returned error: 408
+send-pack: unexpected disconnect while reading sideband packet
+Writing objects: 100% (1411/1411), 531.41 MiB | 5.96 MiB/s, done.
+Total 1411 (delta 1033), reused 4 (delta 0), pack-reused 0 (from 0)
+fatal: the remote end hung up unexpectedly
+Everything up-to-date

@@ -1,0 +1,258 @@
+JavaScript/Fetch (Most Common for Webapps)
+
+  async function uploadToAskStephenAI(videoFile, metadata) {
+    const formData = new FormData();
+
+    // Required fields
+    formData.append('video', videoFile);
+    formData.append('title', metadata.title);
+    formData.append('channel_id', 'UCa586yWZnTTfLXtZNTa5vBw'); // askstephenai channel
+
+    // Optional fields
+    formData.append('description', metadata.description || '');
+    formData.append('tags', metadata.tags || '');
+    formData.append('privacy', metadata.privacy || 'public');
+
+    // Optional: thumbnail
+    if (metadata.thumbnail) {
+      formData.append('thumbnail', metadata.thumbnail);
+    }
+
+    // Optional: captions (VTT or SRT file)
+    if (metadata.captions) {
+      formData.append('english_captions', metadata.captions);
+    }
+
+    try {
+      const response = await fetch('https://youtube-api.aiautomationauthority.com/upload/complete', {
+        method: 'POST',
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        console.log('Video uploaded successfully!');
+        console.log('Video URL:', result.url);
+        console.log('Video ID:', result.video_id);
+        return result;
+      } else {
+        throw new Error(result.error || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw error;
+    }
+  }
+
+  // USAGE EXAMPLE
+  const videoFile = document.getElementById('video-input').files[0];
+  const thumbnailFile = document.getElementById('thumbnail-input').files[0];
+
+  uploadToAskStephenAI(videoFile, {
+    title: 'My Video Title',
+    description: 'My video description with #hashtags',
+    tags: 'tag1, tag2, tag3',
+    privacy: 'public',
+    thumbnail: thumbnailFile
+  })
+  .then(result => {
+    alert('Success! Video URL: ' + result.url);
+  })
+  .catch(error => {
+    alert('Error: ' + error.message);
+  });
+
+  React Example
+
+  import React, { useState } from 'react';
+
+  function YouTubeUploader() {
+    const [uploading, setUploading] = useState(false);
+    const [result, setResult] = useState(null);
+
+    const handleUpload = async (e) => {
+      e.preventDefault();
+      setUploading(true);
+
+      const formData = new FormData(e.target);
+      formData.append('channel_id', 'UCa586yWZnTTfLXtZNTa5vBw'); // askstephenai
+
+      try {
+        const response = await fetch('https://youtube-api.aiautomationauthority.com/upload/complete', {
+          method: 'POST',
+          body: formData
+        });
+
+        const data = await response.json();
+        setResult(data);
+
+        if (data.success) {
+          alert('Video uploaded! URL: ' + data.url);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Upload failed: ' + error.message);
+      } finally {
+        setUploading(false);
+      }
+    };
+
+    return (
+      <form onSubmit={handleUpload}>
+        <input type="file" name="video" required accept="video/*" />
+        <input type="text" name="title" required placeholder="Video Title" />
+        <textarea name="description" placeholder="Description"></textarea>
+        <input type="text" name="tags" placeholder="tag1, tag2, tag3" />
+        <input type="file" name="thumbnail" accept="image/*" />
+
+        <button type="submit" disabled={uploading}>
+          {uploading ? 'Uploading...' : 'Upload to YouTube'}
+        </button>
+
+        {result && result.success && (
+          <div>
+            <p>Success! <a href={result.url} target="_blank">View Video</a></p>
+          </div>
+        )}
+      </form>
+    );
+  }
+
+  export default YouTubeUploader;
+
+  Python/Flask Backend Example
+
+  import requests
+  from flask import Flask, request, jsonify
+
+  app = Flask(__name__)
+
+  @app.route('/upload-to-youtube', methods=['POST'])
+  def upload_to_youtube():
+      # Get data from your webapp
+      video_file = request.files['video']
+      title = request.form['title']
+      description = request.form.get('description', '')
+      tags = request.form.get('tags', '')
+      thumbnail = request.files.get('thumbnail')
+
+      # Prepare upload to YouTube API
+      files = {
+          'video': (video_file.filename, video_file.stream, video_file.content_type)
+      }
+
+      if thumbnail:
+          files['thumbnail'] = (thumbnail.filename, thumbnail.stream, thumbnail.content_type)
+
+      data = {
+          'title': title,
+          'description': description,
+          'tags': tags,
+          'privacy': 'public',
+          'channel_id': 'UCa586yWZnTTfLXtZNTa5vBw'  # askstephenai channel
+      }
+
+      # Upload to YouTube API
+      response = requests.post(
+          'https://youtube-api.aiautomationauthority.com/upload/complete',
+          files=files,
+          data=data
+      )
+
+      return jsonify(response.json())
+
+  if __name__ == '__main__':
+      app.run(debug=True)
+
+  cURL Command (for Testing)
+
+  curl -X POST https://youtube-api.aiautomationauthority.com/upload/complete \
+    -F "video=@/path/to/video.mp4" \
+    -F "title=My Video Title" \
+    -F "description=My video description with #hashtags" \
+    -F "tags=tag1, tag2, tag3" \
+    -F "privacy=public" \
+    -F "thumbnail=@/path/to/thumbnail.jpg" \
+    -F "channel_id=UCa586yWZnTTfLXtZNTa5vBw"
+
+  Complete Workflow with Captions
+
+  // Full workflow: Generate captions → Upload with metadata
+  async function completeVideoUpload(videoFile, videoUrl) {
+    try {
+      // Step 1: Generate captions from video URL (Google Drive, etc.)
+      console.log('Generating captions...');
+      const captionsFormData = new FormData();
+      captionsFormData.append('video_url', videoUrl);
+      captionsFormData.append('language_code', 'en');
+
+      const captionsResponse = await fetch('https://youtube-api.aiautomationauthority.com/transcribe', {
+        method: 'POST',
+        body: captionsFormData
+      });
+
+      const captionsResult = await captionsResponse.json();
+      const vttCaptions = captionsResult.vtt;
+
+      console.log('Captions generated successfully');
+
+      // Step 2: Generate AI metadata (your existing AI logic)
+      console.log('Generating AI metadata...');
+      const aiMetadata = await yourAIMetadataFunction(captionsResult.text);
+
+      // Step 3: Upload video with everything
+      console.log('Uploading to YouTube...');
+      const uploadFormData = new FormData();
+      uploadFormData.append('video', videoFile);
+      uploadFormData.append('title', aiMetadata.title);
+      uploadFormData.append('description', aiMetadata.description);
+      uploadFormData.append('tags', aiMetadata.tags.join(', '));
+      uploadFormData.append('privacy', 'public');
+      uploadFormData.append('channel_id', 'UCa586yWZnTTfLXtZNTa5vBw'); // askstephenai
+
+      // Add captions as blob
+      const captionsBlob = new Blob([vttCaptions], { type: 'text/vtt' });
+      uploadFormData.append('english_captions', captionsBlob, 'captions.vtt');
+
+      // Add thumbnail if generated
+      if (aiMetadata.thumbnail) {
+        uploadFormData.append('thumbnail', aiMetadata.thumbnail);
+      }
+
+      const uploadResponse = await fetch('https://youtube-api.aiautomationauthority.com/upload/complete', {
+        method: 'POST',
+        body: uploadFormData
+      });
+
+      const uploadResult = await uploadResponse.json();
+
+      console.log('Upload complete!', uploadResult);
+      return uploadResult;
+
+    } catch (error) {
+      console.error('Error in workflow:', error);
+      throw error;
+    }
+  }
+
+  Key Points to Share with Webapp Team
+
+  1. API Endpoint: https://youtube-api.aiautomationauthority.com/upload/complete
+  2. Required Parameters:
+    - video (file) - The video file
+    - title (string) - Video title
+    - channel_id = UCa586yWZnTTfLXtZNTa5vBw (for askstephenai)
+  3. Optional Parameters:
+    - description - Video description
+    - tags - Comma-separated tags
+    - privacy - public, unlisted, or private
+    - thumbnail - Thumbnail image file
+    - english_captions - Caption file (VTT or SRT)
+  4. Response Format:
+  {
+    "success": true,
+    "video_id": "dQw4w9WgXcQ",
+    "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "message": "Video uploaded successfully with captions"
+  }

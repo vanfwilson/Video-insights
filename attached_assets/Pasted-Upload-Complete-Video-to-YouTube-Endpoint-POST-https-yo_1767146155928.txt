@@ -1,0 +1,268 @@
+Upload Complete Video to YouTube
+
+  Endpoint
+
+  POST https://youtube-api.aiautomationauthority.com/upload/complete
+  or
+  POST http://72.60.225.136:8001/upload/complete
+
+  ---
+  JavaScript/TypeScript Example
+
+  async function publishToYouTube({
+    videoFile,          // File object
+    title,              // String from AI
+    description,        // String from AI
+    hashtags,           // Array of strings from AI
+    thumbnailFile,      // File object from AI
+    captionsVTT         // VTT string from /transcribe
+  }) {
+    // Create form data
+    const formData = new FormData();
+
+    // Required: Video file
+    formData.append('video', videoFile);
+
+    // Required: Metadata from AI
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('tags', hashtags.join(','));  // Convert array to comma-separated
+
+    // Optional but recommended: Privacy setting
+    formData.append('privacy', 'public');  // or 'unlisted' or 'private'
+
+    // Optional: Language
+    formData.append('language', 'en');
+
+    // Optional: Category (default is 22 = People & Blogs)
+    formData.append('category', '22');
+
+    // Optional: Thumbnail
+    if (thumbnailFile) {
+      formData.append('thumbnail', thumbnailFile);
+    }
+
+    // Optional: Captions
+    if (captionsVTT) {
+      const captionsBlob = new Blob([captionsVTT], { type: 'text/vtt' });
+      formData.append('english_captions', captionsBlob, 'captions.vtt');
+    }
+
+    // Upload to YouTube via API
+    const response = await fetch('https://youtube-api.aiautomationauthority.com/upload/complete', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Upload failed');
+    }
+
+    const result = await response.json();
+
+    /*
+    result = {
+      "success": true,
+      "video_id": "dQw4w9WgXcQ",
+      "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "message": "Video uploaded successfully with captions"
+    }
+    */
+
+    return result.video_id;  // Save this to your database!
+  }
+
+  ---
+  Complete Workflow Example
+
+  async function processAndPublishVideo(videoFile) {
+    try {
+      // Step 1: Get captions from your API
+      const transcribeData = new FormData();
+      transcribeData.append('file', videoFile);
+
+      const transcribeResponse = await fetch('https://youtube-api.aiautomationauthority.com/transcribe', {
+        method: 'POST',
+        body: transcribeData
+      });
+
+      const { text, vtt } = await transcribeResponse.json();
+      console.log('✅ Captions generated');
+
+      // Step 2: Generate metadata using YOUR AI (external service)
+      const aiMetadata = await yourAIService.generateMetadata(text);
+      /*
+      aiMetadata = {
+        title: "How to Build AI Apps",
+        description: "In this video, we explore...",
+        hashtags: ["ai", "tutorial", "coding"],
+        thumbnailBlob: <Blob>
+      }
+      */
+      console.log('✅ AI metadata generated');
+
+      // Step 3: Upload to YouTube with everything
+      const uploadData = new FormData();
+      uploadData.append('video', videoFile);
+      uploadData.append('title', aiMetadata.title);
+      uploadData.append('description', aiMetadata.description);
+      uploadData.append('tags', aiMetadata.hashtags.join(','));
+      uploadData.append('privacy', 'public');
+
+      // Add thumbnail
+      if (aiMetadata.thumbnailBlob) {
+        uploadData.append('thumbnail', aiMetadata.thumbnailBlob, 'thumbnail.jpg');
+      }
+
+      // Add captions
+      const captionsBlob = new Blob([vtt], { type: 'text/vtt' });
+      uploadData.append('english_captions', captionsBlob, 'captions.vtt');
+
+      const uploadResponse = await fetch('https://youtube-api.aiautomationauthority.com/upload/complete', {
+        method: 'POST',
+        body: uploadData
+      });
+
+      const { video_id, url } = await uploadResponse.json();
+      console.log('✅ Published to YouTube:', url);
+
+      // Step 4: Save to database
+      await saveToDB({
+        video_id,
+        youtube_url: url,
+        title: aiMetadata.title,
+        transcript: text,
+        published_at: new Date()
+      });
+
+      return { video_id, url };
+
+    } catch (error) {
+      console.error('❌ Error:', error);
+      throw error;
+    }
+  }
+
+  ---
+  Python Example
+
+  import requests
+
+  def publish_to_youtube(
+      video_path,
+      title,
+      description,
+      hashtags,
+      thumbnail_path=None,
+      captions_vtt=None
+  ):
+      """Upload video with metadata to YouTube"""
+
+      url = 'https://youtube-api.aiautomationauthority.com/upload/complete'
+
+      # Prepare files
+      files = {
+          'video': open(video_path, 'rb')
+      }
+
+      if thumbnail_path:
+          files['thumbnail'] = open(thumbnail_path, 'rb')
+
+      if captions_vtt:
+          files['english_captions'] = ('captions.vtt', captions_vtt, 'text/vtt')
+
+      # Prepare data
+      data = {
+          'title': title,
+          'description': description,
+          'tags': ','.join(hashtags),
+          'privacy': 'public',
+          'language': 'en',
+          'category': '22'
+      }
+
+      # Upload
+      response = requests.post(url, files=files, data=data)
+
+      if response.status_code != 200:
+          raise Exception(f"Upload failed: {response.json()}")
+
+      result = response.json()
+      return result['video_id']
+
+  ---
+  cURL Example (for testing)
+
+  curl -X POST https://youtube-api.aiautomationauthority.com/upload/complete \
+    -F "video=@my-video.mp4" \
+    -F "title=My Amazing Video Title" \
+    -F "description=This video shows how to..." \
+    -F "tags=ai,tutorial,education" \
+    -F "privacy=public" \
+    -F "thumbnail=@thumbnail.jpg" \
+    -F "english_captions=@captions.vtt"
+
+  ---
+  Field Reference
+
+  | Field            | Type   | Required | Description                                    |
+  |------------------|--------|----------|------------------------------------------------|
+  | video            | File   | ✅ Yes   | Video file to upload                           |
+  | title            | String | ✅ Yes   | Video title (from AI)                          |
+  | description      | String | No       | Video description (from AI)                    |
+  | tags             | String | No       | Comma-separated tags/hashtags                  |
+  | privacy          | String | No       | public, unlisted, or private (default: public) |
+  | language         | String | No       | Language code (default: en)                    |
+  | category         | String | No       | YouTube category ID (default: 22)              |
+  | playlist         | String | No       | Playlist name (will create if doesn't exist)   |
+  | thumbnail        | File   | No       | Thumbnail image (JPG/PNG)                      |
+  | english_captions | File   | No       | English captions (VTT or SRT)                  |
+
+  ---
+  Response Format
+
+  Success:
+  {
+    "success": true,
+    "video_id": "dQw4w9WgXcQ",
+    "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "message": "Video uploaded successfully with captions"
+  }
+
+  Error:
+  {
+    "detail": "Client secrets not configured"
+  }
+
+  ---
+  Error Handling
+
+  async function uploadWithRetry(uploadData, maxRetries = 3) {
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const response = await fetch('https://youtube-api.aiautomationauthority.com/upload/complete', {
+          method: 'POST',
+          body: uploadData
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+
+          // Check if it's OAuth issue
+          if (error.detail?.includes('credentials')) {
+            throw new Error('YouTube OAuth not configured. Contact admin.');
+          }
+
+          throw new Error(error.detail || 'Upload failed');
+        }
+
+        return await response.json();
+
+      } catch (error) {
+        if (i === maxRetries - 1) throw error;
+        console.log(`Retry ${i + 1}/${maxRetries}...`);
+        await new Promise(r => setTimeout(r, 2000)); // Wait 2s before retry
+      }
+    }
+  }

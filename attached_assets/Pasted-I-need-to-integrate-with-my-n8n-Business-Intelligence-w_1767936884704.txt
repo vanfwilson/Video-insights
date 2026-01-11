@@ -1,0 +1,508 @@
+I need to integrate with my n8n Business Intelligence workflow. Here's what needs to be done:
+
+## OVERVIEW
+
+The n8n workflow at `https://automation.aiautomationauthority.com/webhook/business-intelligence` will:
+1. Receive a POST request from our app with business info
+2. Process data (scrape Google Maps, run AI analysis) - takes 30-60 seconds
+3. POST the results back to OUR callback webhook
+
+## TASK 1: Create Callback Webhook Endpoint
+
+Create a POST endpoint at `/api/intel/callback` to receive results from n8n.
+```javascript
+// server/routes/intelCallback.js (or wherever your routes are)
+
+app.post('/api/intel/callback', async (req, res) => {
+  try {
+    const results = req.body;
+    
+    console.log('Received BI results:', {
+      clientBusinessId: results.clientBusinessId,
+      actionsCompleted: results.actionsCompleted,
+      timestamp: results.timestamp
+    });
+    
+    // Store the results in PostgreSQL
+    await storeIntelResults(results);
+    
+    // Optionally notify the frontend via WebSocket or polling
+    // notifyClient(results.clientBusinessId, 'intel-complete', results);
+    
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Callback error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+async function storeIntelResults(results) {
+  const { clientBusinessId, actionsCompleted } = results;
+  
+  // Store each analysis type
+  if (results.reviewsAnalysis) {
+    await db.query(`
+      INSERT INTO intel_analyses (client_business_id, analysis_type, results, created_at)
+      VALUES ($1, 'reviews', $2, NOW())
+    `, [clientBusinessId, JSON.stringify(results.reviewsAnalysis)]);
+  }
+  
+  if (results.competitorAnalysis) {
+    await db.query(`
+      INSERT INTO intel_analyses (client_business_id, analysis_type, results, created_at)
+      VALUES ($1, 'competitors', $2, NOW())
+    `, [clientBusinessId, JSON.stringify(results.competitorAnalysis)]);
+  }
+  
+  if (results.partnershipAnalysis?.topPartners) {
+    // Store each partner as a separate record
+    for (const partner of results.partnershipAnalysis.topPartners) {
+      await db.query(`
+        INSERT INTO intel_businesses (
+          client_business_id, place_id, name, business_type, industry, category,
+          rating, review_count, address, phone, website,
+          partnership_score, referral_trigger, approach_script, potential_value,
+          raw_data, created_at
+        ) VALUES ($1, $2, $3, 'partner', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
+        ON CONFLICT (place_id) DO UPDATE SET
+          partnership_score = $11,
+          updated_at = NOW()
+      `, [
+        clientBusinessId,
+        partner.placeId,
+        partner.name,
+        partner.industry,
+        partner.category,
+        partner.rating,
+        partner.reviewCount,
+        partner.address,
+        partner.phone,
+        partner.website,
+        partner.partnershipScore,
+        partner.referralTrigger,
+        partner.approachScript || partner.personalizedApproach,
+        partner.potentialValue,
+        JSON.stringify(partner)
+      ]);
+    }
+  }
+}
+```
+
+## TASK 2: Create Function to Call n8n Workflow
+```javascript
+// server/services/businessIntelligence.js
+
+const N8N_WEBHOOK = 'https://automation.aiautomationauthority.com/webhook/business-intelligence';
+const CALLBACK_URL = 'https://YOUR-REPLIT-URL.replit.app/api/intel/callback'; // UPDATE THIS!
+
+async function requestBusinessIntelligence({
+  clientBusinessId,
+  businessType,        // e.g., "Residential Electrician"
+  businessName,        // e.g., "ABC Electric"
+  geo,                 // e.g., "Austin, TX"
+  placeId,             // Google Maps place_id (optional if just doing partnerships)
+  competitors = [],    // Array of { placeId, name }
+  actions = ['reviews'] // Array: 'reviews', 'competitors', 'partnerships'
+}) {
+  
+  const requestBody = {
+    clientBusinessId,
+    businessType,
+    businessName,
+    geo,
+    placeId,
+    competitors,
+    actions,
+    callbackUrl: CALLBACK_URL
+  };
+  
+  console.log('Sending to n8n:', requestBody);
+  
+  try {
+    const response = await fetch(N8N_WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+    
+    const data = await response.json();
+    console.log('n8n response:', data);
+    
+    // n8n will respond immediately with status, then POST results to callback later
+    return { 
+      status: 'processing',
+      message: 'Analysis started. Results will arrive at callback webhook.',
+      jobId: data.jobId || Date.now()
+    };
+    
+  } catch (error) {
+    console.error('n8n request failed:', error);
+    throw error;
+  }
+}
+
+module.exports = { requestBusinessIntelligence };
+```
+
+## TASK 3: Create API Endpoint for Frontend to Trigger Analysis
+```javascript
+// server/routes/intel.js
+
+const { requestBusinessIntelligence } = require('../services/businessIntelligence');
+
+// Trigger analysis
+app.post('/api/intel/analyze', async (req, res) => {
+  try {
+    const {
+      clientBusinessId,
+      businessType,
+      businessName,
+      geo,
+      placeId,
+      competitors,
+      actions
+    } = req.body;
+    
+    const result = await requestBusinessIntelligence({
+      clientBusinessId,
+      businessType,
+      businessName,
+      geo,
+      placeId,
+      competitors,
+      actions
+    });
+    
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get stored results for a client
+app.get('/api/intel/results/:clientBusinessId', async (req, res) => {
+  const { clientBusinessId } = req.params;
+  const { type } = req.query; // 'reviews', 'competitors', 'partnerships', or 'all'
+  
+  try {
+    let results = {};
+    
+    if (type === 'all' || type === 'reviews' || !type) {
+      const reviews = await db.query(`
+        SELECT results, created_at FROM intel_analyses 
+        WHERE client_business_id = $1 AND analysis_type = 'reviews'
+        ORDER BY created_at DESC LIMIT 1
+      `, [clientBusinessId]);
+      if (reviews.rows[0]) results.reviews = reviews.rows[0].results;
+    }
+    
+    if (type === 'all' || type === 'competitors' || !type) {
+      const competitors = await db.query(`
+        SELECT results, created_at FROM intel_analyses 
+        WHERE client_business_id = $1 AND analysis_type = 'competitors'
+        ORDER BY created_at DESC LIMIT 1
+      `, [clientBusinessId]);
+      if (competitors.rows[0]) results.competitors = competitors.rows[0].results;
+    }
+    
+    if (type === 'all' || type === 'partnerships' || !type) {
+      const partners = await db.query(`
+        SELECT * FROM intel_businesses 
+        WHERE client_business_id = $1 AND business_type = 'partner'
+        ORDER BY partnership_score DESC
+      `, [clientBusinessId]);
+      results.partners = partners.rows;
+    }
+    
+    res.json(results);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+```
+
+## TASK 4: PostgreSQL Schema for Replit Database
+
+Run these migrations:
+```sql
+-- Store AI analysis results (reviews, competitors)
+CREATE TABLE IF NOT EXISTS intel_analyses (
+  id SERIAL PRIMARY KEY,
+  client_business_id INTEGER NOT NULL,
+  analysis_type VARCHAR(50) NOT NULL,  -- 'reviews', 'competitors'
+  results JSONB,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_intel_analyses_client ON intel_analyses(client_business_id);
+CREATE INDEX idx_intel_analyses_type ON intel_analyses(analysis_type);
+
+-- Store business records (partners, leads, competitors as individual records)
+CREATE TABLE IF NOT EXISTS intel_businesses (
+  id SERIAL PRIMARY KEY,
+  client_business_id INTEGER NOT NULL,
+  place_id VARCHAR(100),
+  name VARCHAR(255),
+  business_type VARCHAR(50),       -- 'partner', 'lead', 'competitor'
+  industry VARCHAR(100),
+  category VARCHAR(50),            -- 'PRIMARY', 'SECONDARY', 'EVENT_BASED'
+  rating DECIMAL(2,1),
+  review_count INTEGER,
+  address TEXT,
+  phone VARCHAR(50),
+  website VARCHAR(255),
+  email VARCHAR(255),
+  email_status VARCHAR(20) DEFAULT 'unknown',
+  partnership_score INTEGER,
+  referral_trigger TEXT,
+  approach_script TEXT,
+  potential_value VARCHAR(20),
+  raw_data JSONB,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(place_id)
+);
+
+CREATE INDEX idx_intel_businesses_client ON intel_businesses(client_business_id);
+CREATE INDEX idx_intel_businesses_type ON intel_businesses(business_type);
+CREATE INDEX idx_intel_businesses_score ON intel_businesses(partnership_score DESC);
+```
+
+## TASK 5: Frontend Components to Display Results
+
+### Partners Display Component
+```jsx
+// src/components/PartnersDisplay.jsx
+import { useEffect, useState } from 'react';
+
+export function PartnersDisplay({ clientBusinessId }) {
+  const [partners, setPartners] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/intel/results/${clientBusinessId}?type=partnerships`)
+      .then(res => res.json())
+      .then(data => {
+        setPartners(data.partners || []);
+        setLoading(false);
+      });
+  }, [clientBusinessId]);
+
+  if (loading) return <div>Loading partners...</div>;
+  if (!partners.length) return <div>No partners found yet. Run Partnership Finder first.</div>;
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold">Top Partnership Opportunities</h2>
+      
+      {partners.map(partner => (
+        <div key={partner.id} className="border rounded-lg p-4 bg-white shadow">
+          <div className="flex justify-between items-start">
+            <div>
+              <h3 className="font-semibold text-lg">{partner.name}</h3>
+              <p className="text-sm text-gray-600">{partner.industry} • {partner.category}</p>
+              <p className="text-sm">{partner.address}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-blue-600">{partner.partnership_score}</div>
+              <div className="text-xs text-gray-500">Partner Score</div>
+            </div>
+          </div>
+          
+          <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+            <div>⭐ {partner.rating || 'N/A'}</div>
+            <div>📝 {partner.review_count || 0} reviews</div>
+            <div className={`font-medium ${
+              partner.potential_value === 'Very High' ? 'text-green-600' :
+              partner.potential_value === 'High' ? 'text-blue-600' :
+              'text-gray-600'
+            }`}>
+              {partner.potential_value} Value
+            </div>
+          </div>
+          
+          <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
+            <strong>Why partner:</strong> {partner.referral_trigger}
+          </div>
+          
+          <div className="mt-2 p-3 bg-blue-50 rounded text-sm">
+            <strong>Approach:</strong> {partner.approach_script}
+          </div>
+          
+          <div className="mt-3 flex gap-2">
+            {partner.phone && (
+              <a href={`tel:${partner.phone}`} className="px-3 py-1 bg-green-500 text-white rounded text-sm">
+                📞 Call
+              </a>
+            )}
+            {partner.website && (
+              <a href={partner.website} target="_blank" className="px-3 py-1 bg-blue-500 text-white rounded text-sm">
+                🌐 Website
+              </a>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### Reviews Analysis Display
+```jsx
+// src/components/ReviewsDisplay.jsx
+export function ReviewsDisplay({ clientBusinessId }) {
+  const [analysis, setAnalysis] = useState(null);
+
+  useEffect(() => {
+    fetch(`/api/intel/results/${clientBusinessId}?type=reviews`)
+      .then(res => res.json())
+      .then(data => setAnalysis(data.reviews));
+  }, [clientBusinessId]);
+
+  if (!analysis) return <div>No review analysis yet.</div>;
+
+  return (
+    <div className="space-y-4">
+      <h2 className="text-xl font-bold">Customer Review Analysis</h2>
+      
+      {/* Sentiment Summary */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="p-4 bg-green-100 rounded text-center">
+          <div className="text-2xl font-bold text-green-700">{analysis.sentimentSummary?.positive}%</div>
+          <div className="text-sm">Positive</div>
+        </div>
+        <div className="p-4 bg-gray-100 rounded text-center">
+          <div className="text-2xl font-bold text-gray-700">{analysis.sentimentSummary?.neutral}%</div>
+          <div className="text-sm">Neutral</div>
+        </div>
+        <div className="p-4 bg-red-100 rounded text-center">
+          <div className="text-2xl font-bold text-red-700">{analysis.sentimentSummary?.negative}%</div>
+          <div className="text-sm">Negative</div>
+        </div>
+      </div>
+      
+      {/* Suggested Core Value */}
+      {analysis.suggestedCoreValue && (
+        <div className="p-4 bg-blue-50 border-l-4 border-blue-500">
+          <h3 className="font-semibold">Suggested Core Value</h3>
+          <p className="text-lg italic">"{analysis.suggestedCoreValue}"</p>
+        </div>
+      )}
+      
+      {/* Strengths & Weaknesses */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="p-4 bg-green-50 rounded">
+          <h3 className="font-semibold text-green-800">Strengths</h3>
+          <ul className="mt-2 space-y-1">
+            {analysis.strengths?.map((s, i) => <li key={i}>✓ {s}</li>)}
+          </ul>
+        </div>
+        <div className="p-4 bg-red-50 rounded">
+          <h3 className="font-semibold text-red-800">Areas to Improve</h3>
+          <ul className="mt-2 space-y-1">
+            {analysis.weaknesses?.map((w, i) => <li key={i}>⚠ {w}</li>)}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+## TASK 6: Trigger Button Component
+```jsx
+// src/components/AnalyzeTrigger.jsx
+export function AnalyzeTrigger({ clientBusiness }) {
+  const [status, setStatus] = useState('idle');
+
+  const triggerAnalysis = async (actions) => {
+    setStatus('processing');
+    
+    try {
+      const response = await fetch('/api/intel/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientBusinessId: clientBusiness.id,
+          businessType: clientBusiness.type,
+          businessName: clientBusiness.name,
+          geo: clientBusiness.location,
+          placeId: clientBusiness.googlePlaceId,
+          competitors: clientBusiness.competitors || [],
+          actions
+        })
+      });
+      
+      const data = await response.json();
+      setStatus('submitted');
+      
+      // Poll for results or use WebSocket
+      setTimeout(() => setStatus('idle'), 60000);
+      
+    } catch (error) {
+      setStatus('error');
+    }
+  };
+
+  return (
+    <div className="space-x-2">
+      <button 
+        onClick={() => triggerAnalysis(['reviews'])}
+        disabled={status === 'processing'}
+        className="px-4 py-2 bg-blue-500 text-white rounded disabled:opacity-50"
+      >
+        Analyze Reviews
+      </button>
+      
+      <button 
+        onClick={() => triggerAnalysis(['partnerships'])}
+        disabled={status === 'processing'}
+        className="px-4 py-2 bg-green-500 text-white rounded disabled:opacity-50"
+      >
+        Find Partners
+      </button>
+      
+      <button 
+        onClick={() => triggerAnalysis(['reviews', 'competitors', 'partnerships'])}
+        disabled={status === 'processing'}
+        className="px-4 py-2 bg-purple-500 text-white rounded disabled:opacity-50"
+      >
+        Full Analysis
+      </button>
+      
+      {status === 'processing' && <span className="text-gray-500">Processing... (30-60 sec)</span>}
+      {status === 'submitted' && <span className="text-green-500">✓ Analysis started!</span>}
+    </div>
+  );
+}
+```
+
+## IMPORTANT: Update CALLBACK_URL
+
+Replace `YOUR-REPLIT-URL` with your actual Replit app URL in the `businessIntelligence.js` file.
+
+## JSON Request Format Reference
+
+When calling n8n, send this structure:
+```json
+{
+  "clientBusinessId": 123,
+  "businessType": "Residential Electrician",
+  "businessName": "ABC Electric",
+  "geo": "Austin, TX",
+  "placeId": "ChIJxxxx",
+  "competitors": [
+    { "placeId": "ChIJyyyy", "name": "XYZ Electric" }
+  ],
+  "actions": ["reviews", "competitors", "partnerships"],
+  "callbackUrl": "https://your-replit-app.replit.app/api/intel/callback"
+}
+```
+
+The `actions` array controls what analysis runs:
+- `["reviews"]` — Just review sentiment analysis
+- `["partnerships"]` — Find referral partners (doesn't need placeId)
+- `["reviews", "competitors"]` — Reviews + competitor comparison
+- `["reviews", "competitors", "partnerships"]` — Everything
